@@ -21,7 +21,10 @@ SPREADSHEET_NAME = "Wedding PFC Tracker"
 # GOOGLE AUTH
 # ==============================
 
-scope = ["https://www.googleapis.com/auth/spreadsheets"]
+scope = [
+    "https://www.googleapis.com/auth/spreadsheets",
+    "https://www.googleapis.com/auth/drive"
+]
 
 creds = Credentials.from_service_account_info(
     st.secrets["gcp_service_account"],
