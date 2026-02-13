@@ -3,9 +3,6 @@ import pandas as pd
 import datetime
 import gspread
 from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
-import io
 
 # ==============================
 # CONFIG
@@ -19,7 +16,6 @@ FAT_TARGET = 45
 CARB_TARGET = 130
 
 SPREADSHEET_NAME = "Wedding PFC Tracker"
-DRIVE_FOLDER_NAME = "Wedding Food Photos"
 
 # ==============================
 # GOOGLE AUTH
@@ -27,7 +23,6 @@ DRIVE_FOLDER_NAME = "Wedding Food Photos"
 
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive"
 ]
 
 creds = Credentials.from_service_account_info(
@@ -36,52 +31,35 @@ creds = Credentials.from_service_account_info(
 )
 
 gc = gspread.authorize(creds)
-drive_service = build("drive", "v3", credentials=creds)
-
 sheet = gc.open(SPREADSHEET_NAME)
+
 meals_sheet = sheet.worksheet("Meals")
 weights_sheet = sheet.worksheet("Weights")
 workouts_sheet = sheet.worksheet("Workouts")
+food_sheet = sheet.worksheet("FoodDatabase")
 
 # ==============================
-# UI STYLE
+# UI
 # ==============================
 
 st.set_page_config(page_title="Wedding Cut Tracker", layout="centered")
-
-st.markdown("""
-<style>
-body {
-    background-color: #f8f9fb;
-}
-h1, h2, h3 {
-    color: #333333;
-}
-.block-container {
-    padding-top: 1rem;
-}
-</style>
-""", unsafe_allow_html=True)
-
 st.title("💍 Wedding Cut Dashboard")
 
-# ==============================
-# COUNTDOWN BAR
-# ==============================
-
+# Countdown
 days_left = (WEDDING_DATE - datetime.date.today()).days
-progress = 1 - (days_left / 365)
-
-st.subheader(f"Countdown: {days_left} days left")
-st.progress(min(max(progress, 0), 1))
-
-# ==============================
-# PAGE NAVIGATION
-# ==============================
+st.subheader(f"{days_left} days until June 23, 2026")
+st.progress(max(0, min(1, 1 - days_left/365)))
 
 page = st.sidebar.selectbox(
     "Navigation",
-    ["Today Log", "Photo Gallery", "Workouts", "Weight Progress"]
+    [
+        "Today Log",
+        "Week Summary",
+        "Month Summary",
+        "Year Summary",
+        "Weight Progress",
+        "Workouts"
+    ]
 )
 
 # ==============================
@@ -92,31 +70,62 @@ if page == "Today Log":
 
     today = str(datetime.date.today())
 
-    st.subheader("Add Meal")
+    # ==========================
+    # SMART FOOD ENTRY
+    # ==========================
+
+    st.subheader("Smart Food Entry")
+
+    food_data = pd.DataFrame(food_sheet.get_all_records())
+
+    food_names = food_data["food_name"].tolist()
+
+    selected_food = st.selectbox("Select Food", food_names)
+    grams = st.number_input("Grams", 0)
+
+    if selected_food and grams > 0:
+
+        food_row = food_data[food_data["food_name"] == selected_food].iloc[0]
+
+        protein = (grams / 100) * food_row["protein_per_100g"]
+        fat = (grams / 100) * food_row["fat_per_100g"]
+        carbs = (grams / 100) * food_row["carbs_per_100g"]
+        calories = (grams / 100) * food_row["calories_per_100g"]
+
+        st.write(f"Protein: {round(protein,1)}g")
+        st.write(f"Fat: {round(fat,1)}g")
+        st.write(f"Carbs: {round(carbs,1)}g")
+        st.write(f"Calories: {round(calories,1)} kcal")
+
+        if st.button("Add Smart Entry"):
+            meals_sheet.append_row([
+                today,
+                str(datetime.datetime.now()),
+                selected_food,
+                round(protein,1),
+                round(fat,1),
+                round(carbs,1),
+                round(calories,1),
+                "",
+                ""
+            ])
+            st.success("Meal added!")
+
+    # ==========================
+    # MANUAL ENTRY
+    # ==========================
+
+    st.subheader("Manual Entry")
 
     meal_name = st.text_input("Meal Name")
-    protein = st.number_input("Protein (g)", 0)
-    fat = st.number_input("Fat (g)", 0)
-    carbs = st.number_input("Carbs (g)", 0)
-    notes = st.text_area("Notes")
-    image = st.file_uploader("Upload Photo")
+    protein = st.number_input("Protein (g)", 0.0)
+    fat = st.number_input("Fat (g)", 0.0)
+    carbs = st.number_input("Carbs (g)", 0.0)
 
     calories = protein * 4 + fat * 9 + carbs * 4
-    st.write(f"Calories: {calories} kcal")
+    st.write(f"Calories: {round(calories,1)} kcal")
 
-    image_url = ""
-
-    if st.button("Save Meal"):
-
-        if image:
-            file_metadata = {
-                'name': image.name,
-                'parents': []
-            }
-            media = MediaIoBaseUpload(io.BytesIO(image.read()), mimetype=image.type)
-            file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
-            image_url = f"https://drive.google.com/file/d/{file.get('id')}/view"
-
+    if st.button("Add Manual Entry"):
         meals_sheet.append_row([
             today,
             str(datetime.datetime.now()),
@@ -125,68 +134,151 @@ if page == "Today Log":
             fat,
             carbs,
             calories,
-            notes,
-            image_url
+            "",
+            ""
         ])
+        st.success("Manual meal added!")
 
-        st.success("Meal saved!")
+    # ==========================
+    # DAILY SUMMARY
+    # ==========================
 
     st.subheader("Today's Summary")
 
-    data = meals_sheet.get_all_records()
-    df = pd.DataFrame(data)
+    data = pd.DataFrame(meals_sheet.get_all_records())
 
-    if not df.empty:
-        df_today = df[df["date"] == today]
+    if not data.empty:
+        df_today = data[data["date"] == today]
 
         total_p = df_today["protein"].sum()
         total_f = df_today["fat"].sum()
         total_c = df_today["carbs"].sum()
         total_cal = df_today["calories"].sum()
 
-        st.write(f"Calories: {total_cal}/{CAL_TARGET}")
+        st.write(f"Calories: {round(total_cal,1)} / {CAL_TARGET}")
         st.progress(min(total_cal / CAL_TARGET, 1))
 
-        st.write(f"Protein: {total_p}/{PROTEIN_TARGET}")
-        st.progress(min(total_p / PROTEIN_TARGET, 1))
+        st.write(f"Protein: {round(total_p,1)} / {PROTEIN_TARGET}")
+        st.write(f"Remaining: {round(PROTEIN_TARGET - total_p,1)} g")
 
-        st.write(f"Fat: {total_f}/{FAT_TARGET}")
-        st.progress(min(total_f / FAT_TARGET, 1))
+        st.write(f"Fat: {round(total_f,1)} / {FAT_TARGET}")
+        st.write(f"Remaining: {round(FAT_TARGET - total_f,1)} g")
 
-        st.write(f"Carbs: {total_c}/{CARB_TARGET}")
-        st.progress(min(total_c / CARB_TARGET, 1))
+        st.write(f"Carbs: {round(total_c,1)} / {CARB_TARGET}")
+        st.write(f"Remaining: {round(CARB_TARGET - total_c,1)} g")
 
-        score = (
-            min(total_p / PROTEIN_TARGET, 1) * 0.4 +
-            min(total_cal / CAL_TARGET, 1) * 0.3 +
-            min(total_c / CARB_TARGET, 1) * 0.2 +
-            (1 - min(total_f / FAT_TARGET, 1)) * 0.1
-        ) * 100
+        # Better Score Logic
+        protein_score = min(total_p / PROTEIN_TARGET, 1)
+        calorie_score = min(total_cal / CAL_TARGET, 1)
+        fat_score = 1 - min(total_f / FAT_TARGET, 1)
+
+        score = (protein_score * 0.5 + calorie_score * 0.3 + fat_score * 0.2) * 100
 
         st.subheader(f"Today's Score: {int(score)} / 100")
 
 # ==============================
-# PHOTO GALLERY
+# WEIGHT PAGE
+# ==============================
+# ==============================
+# WEEK SUMMARY
 # ==============================
 
-elif page == "Photo Gallery":
+elif page == "Week Summary":
 
-    st.subheader("Food Photo Gallery")
+    st.subheader("🦎 Weekly Summary")
 
-    data = meals_sheet.get_all_records()
-    df = pd.DataFrame(data)
+    data = pd.DataFrame(meals_sheet.get_all_records())
 
-    for index, row in df.iterrows():
-        if row["image_url"]:
-            st.image(row["image_url"], caption=row["meal_name"])
+    if not data.empty:
+        data["date"] = pd.to_datetime(data["date"])
+        today = pd.to_datetime(datetime.date.today())
+        week_start = today - pd.Timedelta(days=today.weekday())
+
+        week_data = data[data["date"] >= week_start]
+
+        if not week_data.empty:
+            daily = week_data.groupby("date").sum(numeric_only=True)
+
+            st.write("Total This Week:")
+            st.write(daily.sum())
+
+            st.write("Average Per Day:")
+            st.write(daily.mean())
+
+            st.line_chart(daily[["calories"]])
+
+
+# ==============================
+# MONTH SUMMARY
+# ==============================
+
+elif page == "Month Summary":
+
+    st.subheader("🌸 Monthly Summary")
+
+    data = pd.DataFrame(meals_sheet.get_all_records())
+
+    if not data.empty:
+        data["date"] = pd.to_datetime(data["date"])
+        this_month = data[data["date"].dt.month == datetime.date.today().month]
+
+        if not this_month.empty:
+            daily = this_month.groupby("date").sum(numeric_only=True)
+
+            st.write("Total This Month:")
+            st.write(daily.sum())
+
+            st.write("Average Per Day:")
+            st.write(daily.mean())
+
+            st.line_chart(daily[["calories"]])
+
+
+# ==============================
+# YEAR SUMMARY
+# ==============================
+
+elif page == "Year Summary":
+
+    st.subheader("✨ Yearly Summary")
+
+    data = pd.DataFrame(meals_sheet.get_all_records())
+
+    if not data.empty:
+        data["date"] = pd.to_datetime(data["date"])
+        this_year = data[data["date"].dt.year == datetime.date.today().year]
+
+        if not this_year.empty:
+            monthly = this_year.groupby(this_year["date"].dt.month).sum(numeric_only=True)
+
+            st.write("Total This Year:")
+            st.write(monthly.sum())
+
+            st.write("Monthly Breakdown:")
+            st.line_chart(monthly[["calories"]])
+elif page == "Weight Progress":
+
+    weight = st.number_input("Weight (kg)", 0.0)
+
+    if st.button("Save Weight"):
+        weights_sheet.append_row([
+            str(datetime.date.today()),
+            weight
+        ])
+        st.success("Weight saved!")
+
+    data = pd.DataFrame(weights_sheet.get_all_records())
+
+    if not data.empty:
+        data["date"] = pd.to_datetime(data["date"])
+        data = data.sort_values("date")
+        st.line_chart(data.set_index("date")["weight_kg"])
 
 # ==============================
 # WORKOUTS
 # ==============================
 
 elif page == "Workouts":
-
-    st.subheader("Log Workout")
 
     workout_name = st.text_input("Workout Name")
     youtube_link = st.text_input("YouTube Link")
@@ -201,35 +293,7 @@ elif page == "Workouts":
         ])
         st.success("Workout saved!")
 
-    st.subheader("Workout History")
+    data = pd.DataFrame(workouts_sheet.get_all_records())
 
-    data = workouts_sheet.get_all_records()
-    df = pd.DataFrame(data)
-
-    if not df.empty:
-        st.dataframe(df)
-
-# ==============================
-# WEIGHT
-# ==============================
-
-elif page == "Weight Progress":
-
-    st.subheader("Log Weight")
-
-    weight = st.number_input("Weight (kg)", 0.0)
-
-    if st.button("Save Weight"):
-        weights_sheet.append_row([
-            str(datetime.date.today()),
-            weight
-        ])
-        st.success("Weight saved!")
-
-    data = weights_sheet.get_all_records()
-    df = pd.DataFrame(data)
-
-    if not df.empty:
-        df["date"] = pd.to_datetime(df["date"])
-        df = df.sort_values("date")
-        st.line_chart(df.set_index("date")["weight_kg"])
+    if not data.empty:
+        st.dataframe(data)
