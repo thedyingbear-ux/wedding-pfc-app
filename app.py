@@ -174,6 +174,31 @@ def cute_xp_card(label, value, target, emoji="🦎"):
         unsafe_allow_html=True
     )
 
+def render_badges(badges):
+    if not badges:
+        st.info("No badges yet — log meals to start! ✨")
+        return
+
+    badge_html = ""
+    for b in badges:
+        badge_html += f"""
+        <span style="
+            display:inline-block;
+            background:#ffeaf4;
+            border:2px solid rgba(255,158,203,0.5);
+            color:#ff6fa5;
+            border-radius:999px;
+            padding:6px 14px;
+            margin:6px 6px 6px 0;
+            font-weight:600;
+            font-size:14px;
+        ">
+            {b}
+        </span>
+        """
+
+    st.markdown(badge_html, unsafe_allow_html=True)
+
 # ==============================
 # BADGES + STREAK HELPERS
 # ==============================
@@ -283,7 +308,7 @@ if page == "Today Log":
             unlocked.append("👑 14-Day Streak")
 
         st.markdown("### 🏆 Badges Unlocked")
-        st.write(" • " + "\n • ".join(unlocked) if unlocked else "No badges yet — log meals to start! ✨")
+        render_badges(unlocked)
 
         # Badge pop effect (once/day per session)
         key = f"badge_pop_{datetime.date.today()}"
