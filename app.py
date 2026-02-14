@@ -16,7 +16,6 @@ PROTEIN_TARGET = 110
 FAT_TARGET = 45
 CARB_TARGET = 130
 
-SPREADSHEET_NAME = "Wedding PFC Tracker"  # not used for open anymore, but ok to keep
 SPREADSHEET_ID = "1-4fTk-_YaVF5r7GWShZhYgYdAHe9DhJZV3Lxtwnxmdg"
 
 SCOPES = [
@@ -68,19 +67,38 @@ st.set_page_config(page_title="Wedding Cut Tracker", layout="centered")
 st.markdown(
     """
     <style>
-    div.stButton > button {
+    /* --- MAIN buttons: pink --- */
+    section.main div.stButton > button {
         border-radius: 20px;
         background-color: #ffb6d9;
         color: white;
         border: none;
         padding: 0.5em 1.5em;
-        font-weight: bold;
+        font-weight: 800;
     }
-    div.stButton > button:hover {
+    section.main div.stButton > button:hover {
         background-color: #ff9ecb;
         color: white;
     }
+
+    /* --- SIDEBAR buttons: light blue gradient --- */
+    .stSidebar div.stButton > button {
+        border-radius: 16px !important;
+        border: none !important;
+        padding: 0.55em 1.0em !important;
+        font-weight: 800 !important;
+        color: #1f3c5a !important;
+        background: linear-gradient(90deg, #a8d8ff, #c7eaff) !important;
+        box-shadow: 0 6px 14px rgba(33, 110, 165, 0.12) !important;
+    }
+    .stSidebar div.stButton > button:hover {
+        background: linear-gradient(90deg, #8ccfff, #b8e3ff) !important;
+        color: #0f2f4a !important;
+    }
+
+    /* Progress bar color */
     div.stProgress > div > div > div { background-color: #ff9ecb; }
+
     h1, h2, h3 { color: #ff6fa5; }
     .block-container { padding-top: 1.5rem; }
 
@@ -105,7 +123,7 @@ st.markdown(
       border-radius:999px;
       padding:8px 14px;
       margin:6px 8px 6px 0;
-      font-weight:800;
+      font-weight:900;
       font-size:14px;
       letter-spacing:0.2px;
       color:#fff;
@@ -170,7 +188,6 @@ def cute_line_chart(df, x_col, y_col, title, goal=None, y_suffix=""):
         name=title
     ))
 
-    # Soft “game gauge” fill
     fig.add_trace(go.Scatter(
         x=df[x_col],
         y=df[y_col],
@@ -182,7 +199,6 @@ def cute_line_chart(df, x_col, y_col, title, goal=None, y_suffix=""):
         name=""
     ))
 
-    # Goal “boss line”
     if goal is not None:
         fig.add_hline(
             y=goal,
@@ -219,17 +235,17 @@ def cute_xp_card(label, value, target, emoji="🦎"):
             margin: 8px 0;
         ">
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div style="font-weight:800;color:#ff6fa5;font-size:16px;">
+            <div style="font-weight:900;color:#ff6fa5;font-size:16px;">
               {emoji} {label}
             </div>
-            <div style="font-weight:700;color:#4a4a4a;">
+            <div style="font-weight:800;color:#4a4a4a;">
               {value:.0f} / {target:.0f}
             </div>
           </div>
           <div style="height:14px;background:#fff6fb;border-radius:999px;overflow:hidden;margin-top:10px;">
             <div style="height:14px;width:{percent}%;background:#ff9ecb;"></div>
           </div>
-          <div style="margin-top:8px;color:#ff6fa5;font-weight:700;">
+          <div style="margin-top:8px;color:#ff6fa5;font-weight:800;">
             XP: {percent}%
           </div>
         </div>
@@ -237,8 +253,10 @@ def cute_xp_card(label, value, target, emoji="🦎"):
         unsafe_allow_html=True
     )
 
+# ==============================
+# EFFECTS + BADGES HELPERS
+# ==============================
 def confetti():
-    # Lightweight JS confetti burst
     js = """
     <canvas id="confetti" style="position:fixed;inset:0;pointer-events:none;z-index:9999;"></canvas>
     <script>
@@ -267,8 +285,7 @@ def confetti():
         p.x += p.vx;
         p.y += p.vy;
         p.a += p.va;
-        p.vy += 0.02; // gravity
-
+        p.vy += 0.02;
         ctx.save();
         ctx.translate(p.x,p.y);
         ctx.rotate(p.a);
@@ -285,36 +302,7 @@ def confetti():
     """
     components.html(js, height=0)
 
-def render_badges(badges):
-    if not badges:
-        st.info("No badges yet — log meals to start! ✨")
-        return
-
-    badge_html = ""
-    for b in badges:
-        badge_html += f"""
-        <span style="
-            display:inline-block;
-            background:#ffeaf4;
-            border:2px solid rgba(255,158,203,0.5);
-            color:#ff6fa5;
-            border-radius:999px;
-            padding:6px 14px;
-            margin:6px 6px 6px 0;
-            font-weight:600;
-            font-size:14px;
-        ">
-            {b}
-        </span>
-        """
-
-    st.markdown(badge_html, unsafe_allow_html=True)
-
-# ==============================
-# BADGES + STREAK HELPERS
-# ==============================
 def play_badge_sound(enabled: bool):
-    """Plays a tiny sound. Autoplay may be blocked on iOS unless user interacted."""
     if not enabled:
         return
     audio_html = """
@@ -329,7 +317,6 @@ def play_badge_sound(enabled: bool):
     components.html(audio_html, height=0)
 
 def compute_daily_totals(meals: pd.DataFrame) -> pd.DataFrame:
-    """Daily totals per date."""
     if meals is None or meals.empty:
         return pd.DataFrame()
     if "date" not in meals.columns:
@@ -342,7 +329,6 @@ def compute_daily_totals(meals: pd.DataFrame) -> pd.DataFrame:
     return daily.sort_index()
 
 def current_streak(daily: pd.DataFrame, condition_col: str) -> int:
-    """Count consecutive days up to today where daily[condition_col] is True."""
     if daily.empty or condition_col not in daily.columns:
         return 0
     today = pd.to_datetime(datetime.date.today())
@@ -356,23 +342,85 @@ def current_streak(daily: pd.DataFrame, condition_col: str) -> int:
             break
     return streak
 
+def render_badges(badges):
+    if not badges:
+        st.info("No badges yet — log meals to start! ✨")
+        return
+
+    rarity_bg = {
+        "🥚 First Log": "linear-gradient(90deg,#9ad7ff,#c7eaff)",
+        "🦎 Protein Boss": "linear-gradient(90deg,#ff6fa5,#ff9ecb,#ffd1e8)",
+        "🌸 Perfect Day": "linear-gradient(90deg,#ff4f93,#ff9ecb,#fff2f8)",
+        "🔥 3-Day Streak": "linear-gradient(90deg,#ff6a00,#ff4f93,#ff9ecb)",
+        "💎 7-Day Streak": "linear-gradient(90deg,#6a5cff,#ff6fa5,#ffd1e8)",
+        "👑 14-Day Streak": "linear-gradient(90deg,#f7b500,#ff6fa5,#ffd1e8)",
+    }
+
+    chips = '<div class="badge-wrap">'
+    for b in badges:
+        bg = rarity_bg.get(b, "linear-gradient(90deg,#ff6fa5,#ff9ecb)")
+        shimmer_class = " shimmer" if any(x in b for x in ["💎", "👑", "🌸"]) else ""
+        chips += f'<span class="badge-chip{shimmer_class}" style="background:{bg};">{b}</span>'
+    chips += "</div>"
+    st.markdown(chips, unsafe_allow_html=True)
+
 # ==============================
-# COUNTDOWN + NAV
+# COUNTDOWN
 # ==============================
 days_left = (WEDDING_DATE - datetime.date.today()).days
 st.subheader(f"{days_left} days until June 23, 2026")
 st.progress(max(0, min(1, 1 - days_left / 365)))
 
-page = st.sidebar.selectbox(
-    "Navigation",
-    ["Today Log", "Week Summary", "Month Summary", "Year Summary", "Weight Progress", "Workouts"]
+# ==============================
+# SIDEBAR: mascot + controls
+# ==============================
+st.sidebar.markdown(
+    """
+    <div style="text-align:center; margin-top:6px; margin-bottom:10px;">
+        <img src="https://images.unsplash.com/photo-1619983081563-430f63602796?auto=format&fit=crop&w=400&q=60"
+             width="150"
+             style="border-radius:22px; box-shadow: 0 8px 18px rgba(0,0,0,0.12);">
+        <div style="font-weight:900; color:#ff6fa5; margin-top:8px;">
+            🐶 Cut Companion
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
-if st.sidebar.button("🔄 Refresh data (if something looks outdated)"):
+sound_on = st.sidebar.toggle("🔊 Sound effects", value=True)
+
+if st.sidebar.button("🔔 Enable sound (tap once)"):
+    play_badge_sound(True)
+    st.toast("Sound enabled 💗", icon="🔊")
+
+if st.sidebar.button("🔄 Refresh data"):
     st.cache_data.clear()
     st.toast("Refreshed ✨")
 
-sound_on = st.sidebar.toggle("🔊 Sound effects", value=True)
+# ==============================
+# SIDEBAR NAV: categories (buttons) + pages (radio)
+# ==============================
+st.sidebar.markdown("## 🧭 Menu")
+
+if "nav_group" not in st.session_state:
+    st.session_state.nav_group = "Daily"
+
+if st.sidebar.button("💗 Daily", use_container_width=True):
+    st.session_state.nav_group = "Daily"
+if st.sidebar.button("📊 Stats", use_container_width=True):
+    st.session_state.nav_group = "Stats"
+if st.sidebar.button("🧩 Body", use_container_width=True):
+    st.session_state.nav_group = "Body"
+
+group = st.session_state.nav_group
+
+if group == "Daily":
+    page = st.sidebar.radio("", ["Today Log"], label_visibility="collapsed")
+elif group == "Stats":
+    page = st.sidebar.radio("", ["Week Summary", "Month Summary", "Year Summary"], label_visibility="collapsed")
+else:
+    page = st.sidebar.radio("", ["Weight Progress", "Workouts"], label_visibility="collapsed")
 
 # ==============================
 # TODAY LOG
@@ -380,17 +428,18 @@ sound_on = st.sidebar.toggle("🔊 Sound effects", value=True)
 if page == "Today Log":
     today = str(datetime.date.today())
 
-    # ----- GAME STATUS: streaks + badges -----
     meals_all = read_records("Meals")
     daily = compute_daily_totals(meals_all)
 
     st.markdown("## 🎮 Gecko Quest Status")
-
-    st.markdown('<div style="font-size:20px;margin-top:-6px;margin-bottom:10px;">'
-            '<span class="gecko-bounce">🦎</span> '
-            '<span style="color:#ff6fa5;font-weight:800;">Quest HUD</span> '
-            '<span style="color:#ff9ecb;font-weight:700;">(streaks & rewards)</span>'
-            '</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div style="font-size:20px;margin-top:-6px;margin-bottom:10px;">'
+        '<span class="gecko-bounce">🦎</span> '
+        '<span style="color:#ff6fa5;font-weight:900;">Quest HUD</span> '
+        '<span style="color:#ff9ecb;font-weight:800;">(streaks & rewards)</span>'
+        '</div>',
+        unsafe_allow_html=True
+    )
 
     if not daily.empty:
         daily["hit_protein"] = daily.get("protein", 0) >= PROTEIN_TARGET
@@ -408,8 +457,7 @@ if page == "Today Log":
         today_dt = pd.to_datetime(datetime.date.today())
         today_row = daily.loc[today_dt] if today_dt in daily.index else None
 
-        unlocked = []
-        unlocked.append("🥚 First Log")  # if daily exists, user has logged at least once
+        unlocked = ["🥚 First Log"]
 
         if today_row is not None:
             if float(today_row.get("protein", 0)) >= PROTEIN_TARGET:
@@ -427,13 +475,17 @@ if page == "Today Log":
         st.markdown("### 🏆 Badges Unlocked")
         render_badges(unlocked)
 
-        # Badge pop effect (once/day per session)
         key = f"badge_pop_{datetime.date.today()}"
         if "badge_pop_key" not in st.session_state:
             st.session_state["badge_pop_key"] = ""
+
         if unlocked and st.session_state["badge_pop_key"] != key:
             st.toast("✨ Badge unlocked!", icon="🏆")
             play_badge_sound(sound_on)
+
+            if "🌸 Perfect Day" in unlocked:
+                confetti()
+
             st.session_state["badge_pop_key"] = key
     else:
         st.info("Log your first meal to start streaks and unlock badges! 🦎✨")
@@ -554,7 +606,6 @@ elif page == "Week Summary":
             st.info("No meals logged this week yet.")
         else:
             daily = week_data.groupby("date").sum(numeric_only=True)
-
             cute_xp_card("Weekly Avg Calories", daily["calories"].mean(), CAL_TARGET, "💗")
             if "protein" in daily.columns:
                 cute_xp_card("Weekly Avg Protein", daily["protein"].mean(), PROTEIN_TARGET, "🦎")
@@ -586,7 +637,6 @@ elif page == "Month Summary":
             st.info("No meals logged this month yet.")
         else:
             daily = this_month.groupby("date").sum(numeric_only=True)
-
             cute_xp_card("Monthly Avg Calories", daily["calories"].mean(), CAL_TARGET, "💗")
             if "protein" in daily.columns:
                 cute_xp_card("Monthly Avg Protein", daily["protein"].mean(), PROTEIN_TARGET, "🦎")
