@@ -15,6 +15,8 @@ FAT_TARGET = 45
 CARB_TARGET = 130
 
 SPREADSHEET_NAME = "Wedding PFC Tracker"
+SPREADSHEET_ID = "1-4fTk-_YaVF5r7GWShZhYgYdAHe9DhJZV3Lxtwnxmdg"
+
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
@@ -35,7 +37,7 @@ def get_gspread_client():
 @st.cache_resource(show_spinner=False)
 def get_spreadsheet():
     gc = get_gspread_client()
-    return gc.open(SPREADSHEET_NAME)
+    return gc.open_by_key(SPREADSHEET_ID)
 
 sheet = get_spreadsheet()
 
