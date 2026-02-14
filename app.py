@@ -65,41 +65,88 @@ def append_row(ws_title: str, row: list):
 # ==============================
 st.set_page_config(page_title="Wedding Cut Tracker", layout="centered")
 
-st.markdown("""
-<style>
-div.stButton > button {
-    border-radius: 20px;
-    background-color: #ffb6d9;
-    color: white;
-    border: none;
-    padding: 0.5em 1.5em;
-    font-weight: bold;
-}
-div.stButton > button:hover {
-    background-color: #ff9ecb;
-    color: white;
-}
-div.stProgress > div > div > div { background-color: #ff9ecb; }
-h1, h2, h3 { color: #ff6fa5; }
-.block-container { padding-top: 1.5rem; }
-st.markdown("""
-<style>
-div.stButton > button {
-    border-radius: 20px;
-    ...
-}
+st.markdown(
+    """
+    <style>
+    div.stButton > button {
+        border-radius: 20px;
+        background-color: #ffb6d9;
+        color: white;
+        border: none;
+        padding: 0.5em 1.5em;
+        font-weight: bold;
+    }
+    div.stButton > button:hover {
+        background-color: #ff9ecb;
+        color: white;
+    }
+    div.stProgress > div > div > div { background-color: #ff9ecb; }
+    h1, h2, h3 { color: #ff6fa5; }
+    .block-container { padding-top: 1.5rem; }
 
-/* existing styles */
+    /* --- GAME FX --- */
+    @keyframes geckoBounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    @keyframes shimmer {
+      0% { background-position: 0% 50%; }
+      100% { background-position: 200% 50%; }
+    }
+    @keyframes popIn {
+      0% { transform: scale(0.85); opacity: 0.0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
 
-/* --- GAME FX --- */
-@keyframes geckoBounce {
-  ...
-}
-...
-</style>
-""", unsafe_allow_html=True)
-</style>
-""", unsafe_allow_html=True)
+    .badge-chip {
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      border-radius:999px;
+      padding:8px 14px;
+      margin:6px 8px 6px 0;
+      font-weight:800;
+      font-size:14px;
+      letter-spacing:0.2px;
+      color:#fff;
+      border:1px solid rgba(255,255,255,0.35);
+      box-shadow: 0 6px 14px rgba(255, 111, 165, 0.18);
+      animation: popIn 220ms ease-out;
+      backdrop-filter: blur(6px);
+      position: relative;
+    }
+
+    .badge-chip::after {
+      content:"";
+      position:absolute;
+      inset:-2px;
+      border-radius:999px;
+      pointer-events:none;
+      background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.45), transparent 35%),
+                  radial-gradient(circle at 80% 10%, rgba(255,255,255,0.25), transparent 30%);
+      opacity:0.85;
+    }
+
+    .badge-wrap {
+      display:flex;
+      flex-wrap:wrap;
+      align-items:center;
+    }
+
+    .gecko-bounce {
+      display:inline-block;
+      animation: geckoBounce 900ms ease-in-out infinite;
+      filter: drop-shadow(0 4px 8px rgba(255, 111, 165, 0.25));
+    }
+
+    .shimmer {
+      background-size: 200% 200%;
+      animation: shimmer 1600ms linear infinite;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 st.title("💍 Wedding Cut Dashboard")
 st.markdown("<h4 style='color:#ff7fb0;'>🦎 Lean & Lovely Mode Activated 💗</h4>", unsafe_allow_html=True)
