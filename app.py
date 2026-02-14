@@ -82,6 +82,22 @@ div.stButton > button:hover {
 div.stProgress > div > div > div { background-color: #ff9ecb; }
 h1, h2, h3 { color: #ff6fa5; }
 .block-container { padding-top: 1.5rem; }
+st.markdown("""
+<style>
+div.stButton > button {
+    border-radius: 20px;
+    ...
+}
+
+/* existing styles */
+
+/* --- GAME FX --- */
+@keyframes geckoBounce {
+  ...
+}
+...
+</style>
+""", unsafe_allow_html=True)
 </style>
 """, unsafe_allow_html=True)
 
@@ -173,6 +189,54 @@ def cute_xp_card(label, value, target, emoji="🦎"):
         """,
         unsafe_allow_html=True
     )
+
+def confetti():
+    # Lightweight JS confetti burst
+    js = """
+    <canvas id="confetti" style="position:fixed;inset:0;pointer-events:none;z-index:9999;"></canvas>
+    <script>
+    const canvas = document.getElementById('confetti');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width = window.innerWidth;
+    const H = canvas.height = window.innerHeight;
+
+    const colors = ['#ff6fa5','#ff9ecb','#ffd1e8','#ffffff'];
+    const pieces = Array.from({length: 140}).map(() => ({
+      x: Math.random() * W,
+      y: -20 - Math.random() * H * 0.3,
+      r: 3 + Math.random() * 5,
+      c: colors[Math.floor(Math.random()*colors.length)],
+      vx: -2 + Math.random()*4,
+      vy: 2 + Math.random()*5,
+      a: Math.random()*Math.PI,
+      va: -0.2 + Math.random()*0.4
+    }));
+
+    let t = 0;
+    function draw(){
+      t++;
+      ctx.clearRect(0,0,W,H);
+      pieces.forEach(p=>{
+        p.x += p.vx;
+        p.y += p.vy;
+        p.a += p.va;
+        p.vy += 0.02; // gravity
+
+        ctx.save();
+        ctx.translate(p.x,p.y);
+        ctx.rotate(p.a);
+        ctx.fillStyle = p.c;
+        ctx.fillRect(-p.r, -p.r, p.r*2, p.r*2);
+        ctx.restore();
+      });
+
+      if(t < 120) requestAnimationFrame(draw);
+      else canvas.remove();
+    }
+    draw();
+    </script>
+    """
+    components.html(js, height=0)
 
 def render_badges(badges):
     if not badges:
@@ -274,6 +338,12 @@ if page == "Today Log":
     daily = compute_daily_totals(meals_all)
 
     st.markdown("## 🎮 Gecko Quest Status")
+
+    st.markdown('<div style="font-size:20px;margin-top:-6px;margin-bottom:10px;">'
+            '<span class="gecko-bounce">🦎</span> '
+            '<span style="color:#ff6fa5;font-weight:800;">Quest HUD</span> '
+            '<span style="color:#ff9ecb;font-weight:700;">(streaks & rewards)</span>'
+            '</div>', unsafe_allow_html=True)
 
     if not daily.empty:
         daily["hit_protein"] = daily.get("protein", 0) >= PROTEIN_TARGET
